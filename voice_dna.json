@@ -61,7 +61,9 @@
     "Data lineage, metadata catalogs, fine-tuning, embeddings",
     "Bilingual EN/Mandarin work in Asian factory contexts",
     "Hospitality and design — brand-as-build, sense of place, Rosewood-class craft",
-    "Ikigai philosophy and purpose-chasing — the emotional/aspirational register"
+    "Ikigai philosophy and purpose-chasing — the emotional/aspirational register",
+    "Active builds: injester (data lineage / catalog), Agent Web Protocol (open agent interop), LaClawClaw (commerce agents)",
+    "Compressed thesis frame: 'agents × commerce × open protocols' — three-noun-cross product naming"
   ],
   "brand": {
     "primary_color": "#0A0B10",
