@@ -1,0 +1,29 @@
+# Sources Scout monitors per tick.
+# See .agents/skills/source_scanning/SKILL.md for the protocol.
+# TODO (founder): replace these placeholder sources with the actual feeds you want monitored.
+
+sources:
+  - type: rss
+    name: simonwillison
+    url: https://simonwillison.net/atom/everything/
+
+  - type: rss
+    name: latent_space
+    url: https://www.latent.space/feed
+
+  - type: hn_tag
+    name: hn_front_page
+    min_points: 100
+
+  - type: arxiv
+    name: arxiv_cs_ai
+    url: https://arxiv.org/rss/cs.AI
+
+  - type: arxiv
+    name: arxiv_cs_lg
+    url: https://arxiv.org/rss/cs.LG
+
+  # Add 2–4 more domain-specific feeds before demo:
+  # - type: rss
+  #   name: <name>
+  #   url: <url>

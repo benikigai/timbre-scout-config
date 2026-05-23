@@ -1,0 +1,9 @@
+# runtime state — written by Scout each tick, not config
+candidates.json
+seen.txt
+alerts.json
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
