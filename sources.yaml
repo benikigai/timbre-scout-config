@@ -1,29 +1,64 @@
 # Sources Scout monitors per tick.
-# See .agents/skills/source_scanning/SKILL.md for the protocol.
-# TODO (founder): replace these placeholder sources with the actual feeds you want monitored.
+# See .agents/skills/source_scanning/SKILL.md for the fetching protocol.
+#
+# Each entry's `name` becomes the Candidate.source field as `<type>:<name>`,
+# e.g. a HN frontpage hit becomes `source: "hn_tag:hn-frontpage"`.
 
 sources:
-  - type: rss
-    name: simonwillison
-    url: https://simonwillison.net/atom/everything/
-
-  - type: rss
-    name: latent_space
-    url: https://www.latent.space/feed
+  # === Tier 1 default sources (per specs/03-tools.md §5) ===
 
   - type: hn_tag
-    name: hn_front_page
+    name: hn-frontpage
     min_points: 100
+    # High-signal aggregator; threshold filters out noise
+
+  - type: hn_tag
+    name: hn-newest
+    min_points: 20
+    # Catches emerging threads before they hit frontpage
 
   - type: arxiv
-    name: arxiv_cs_ai
+    name: arxiv-cs-ai
     url: https://arxiv.org/rss/cs.AI
+    # Research first-mover for AI
 
   - type: arxiv
-    name: arxiv_cs_lg
+    name: arxiv-cs-lg
     url: https://arxiv.org/rss/cs.LG
+    # ML methods, complementary to cs.AI
 
-  # Add 2–4 more domain-specific feeds before demo:
-  # - type: rss
-  #   name: <name>
-  #   url: <url>
+  - type: rss
+    name: rss-openai
+    url: https://openai.com/news/rss.xml
+    # Direct from competitor; canonical announcements
+
+  - type: rss
+    name: rss-deepmind
+    url: https://deepmind.google/blog/rss.xml
+    # Direct from event host (Google I/O hackathon)
+
+  - type: rss
+    name: rss-anthropic
+    url: https://www.anthropic.com/news
+    # No published RSS feed — Scout should use google_search `site:anthropic.com/news`
+    # + url_context per source_scanning skill fallback for this entry.
+
+  - type: x_user
+    name: x-karpathy
+    handle: "@karpathy"
+    # High-signal individual; skipped silently if no X API access
+    # (per source_scanning/SKILL.md §x_user)
+
+  # === Founder reading habits (Ben Shyong) ===
+  # These are the feeds Ben actually reads — additive signal for voice_fit
+  # scoring (per topic_scoring/SKILL.md, "source matches founder-blessed feed").
+
+  - type: rss
+    name: rss-simonwillison
+    url: https://simonwillison.net/atom/everything/
+    # Adjacent technical voice; agent infra / LLM tooling coverage
+
+  - type: rss
+    name: rss-latent-space
+    url: https://www.latent.space/feed
+    # Long-form interviews with infra/agent founders
