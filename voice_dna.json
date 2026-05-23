@@ -1,0 +1,39 @@
+{
+  "founder_id": "benjamin",
+  "tone": [
+    "direct",
+    "engineering-first",
+    "slightly-skeptical",
+    "pragmatic",
+    "dry-humor"
+  ],
+  "sentence_length": "concise",
+  "technical_depth": "deep-engineer",
+  "forbidden_jargon": [
+    "disrupt",
+    "game-changing",
+    "leverage",
+    "robust",
+    "in today's fast-paced world",
+    "synergy",
+    "best-in-class",
+    "revolutionize",
+    "paradigm shift",
+    "world-class",
+    "cutting-edge",
+    "seamless"
+  ],
+  "preferred_openings": [
+    "Most ${noun} ${verb}...",
+    "The problem with ${thing} is...",
+    "I've been running ${system} for ${duration} and...",
+    "Here's what ${tool} doesn't tell you:",
+    "Two things matter for ${topic}:"
+  ],
+  "brand": {
+    "primary_color": "#0A0B10",
+    "accent_color": "#7C5CFF",
+    "font_family": "Outfit"
+  },
+  "tts_voice": "PLACEHOLDER_set_after_smoke_test"
+}
