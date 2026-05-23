@@ -1,65 +1,71 @@
 ---
 name: topic_scoring
-description: Score a candidate topic on novelty, relevance, and voice fit. Output a number in [0, 1].
+description: Score a candidate on novelty and voice fit, then combine. Outputs three numbers in [0,1] that map directly onto the Candidate schema.
 ---
 
 # Topic scoring
 
-For each candidate that survives dedupe, produce a single score `[0, 1]` that summarizes whether the founder should care.
+For each candidate that survives dedupe, compute three scores:
 
-## Components
+- `novelty_score` ∈ `[0, 1]`
+- `voice_fit_score` ∈ `[0, 1]`
+- `combined_score = 0.55 * voice_fit_score + 0.45 * novelty_score` (rounded to 3 decimals)
 
-The score is the weighted product of three sub-scores. Each is in `[0, 1]`.
+**Determinism rule:** the scoring path is rule-based. Do not call the model to derive scores — use the rubrics below mechanically. Same input → same scores.
 
-### `novelty` (weight: 0.3)
+## `novelty_score`
 
-Is this story actually new, or has the topic been covered to death? Use:
+Start from the highest matching tier; stop at the first that applies.
 
-- Was the same claim/finding/release covered by any source in `seen.txt` in the last 7 days? If yes, novelty ≤ 0.3.
-- Does the title use stock phrases ("X is revolutionizing Y", "the death of Z")? Penalize.
-- Does the story include a specific technical claim, dataset, benchmark number, or code reference? Boost.
+| Condition | Score |
+|---|---|
+| Canonical URL is in `seen.txt` (shouldn't reach scoring, but defensive) | `0.00` |
+| Title or summary fuzzy-matches an entry seen in the last 7 days (e.g. same release announced by 3 outlets) | `0.30` |
+| Topic is adjacent to (but not identical to) something covered in `voice_corpus/` or `seen.txt` in the last 14 days | `0.70` |
+| Topic is absent from `voice_corpus/` AND from `seen.txt` for the last 7 days | `1.00` |
 
-### `relevance` (weight: 0.4)
+Subtract `0.10` (floor at 0) if the title uses stock hype phrasing: "revolutionize", "game-changing", "the death of X", "X is eating Y". (See `voice_dna.json` → `forbidden_jargon` for the canonical list.)
 
-Does this match the founder's domain? Consult `voice_profile` for the founder's topical surface area. Score relevance against:
+## `voice_fit_score`
 
-- Topics the founder has written about before (from `voice_corpus/`)
-- Adjacent topics that intersect their stated focus
-- Stories where they would have a contrarian or insider take
+Additive, then capped to `[0, 1]`. Consult the `voice_profile` skill output first.
 
-A story that's *interesting in general* but outside the founder's wheelhouse should score relevance < 0.4 even if it's important news.
+| Condition | Add |
+|---|---|
+| Candidate's topic plausibly carries one of the profile's `tone` tags (e.g. `engineering-first`, `pragmatic`, `slightly-skeptical`) | `+0.40` |
+| Candidate intersects a topical anchor extracted from `voice_corpus/*.md` (a domain term that recurs in the founder's past posts) | `+0.30` |
+| Candidate's likely technical depth aligns with `technical_depth` (`deep-engineer` candidates want code/benchmarks/mechanism; mismatch → no bonus) | `+0.30` |
+| Title or summary contains a term from `forbidden_jargon` | `-0.20` |
 
-### `voice_fit` (weight: 0.3)
+After additive scoring, apply the **forbidden-moves caps** from `voice_profile` (generic AI hype / press-release re-tread / outsider topic). These are post-additive clamps, not additive penalties — a candidate stuck in any of those buckets is capped at `0.30` or `0.20` regardless of its raw additive score.
 
-Could the founder write about this in their voice? Apply the `voice_profile` skill. Discount candidates that:
+If `voice_corpus/` is empty, the corpus-anchor bullet contributes 0 (don't fabricate anchors). Voice_fit then leans on tone + technical_depth alone.
 
-- Are pure punditry on macro tech trends (low fit — founder writes technically)
-- Are press release re-treads (low fit — founder writes original takes)
-- Require knowledge the founder demonstrably doesn't have (low fit)
+## `combined_score`
 
-Boost candidates that:
+```
+combined_score = round(0.55 * voice_fit_score + 0.45 * novelty_score, 3)
+```
 
-- Connect to something the founder already has a strong opinion about
-- Have a technical angle the founder is positioned to explain better than the source
+## Output (per candidate)
 
-## Output
+Write these directly into the `Candidate` object in `candidates.json`:
 
 ```json
 {
-  "score": 0.78,
-  "novelty": 0.85,
-  "relevance": 0.80,
-  "voice_fit": 0.70,
-  "reasoning": "One sentence on why this scored where it did."
+  "novelty_score": 0.700,
+  "voice_fit_score": 0.700,
+  "combined_score": 0.700,
+  "summary": "<one-sentence why this matters; <=280 chars>"
 }
 ```
 
-Persist this into the entry's `score` field in `candidates.json`. Keep `reasoning` short — it's for human spot-checks during demos.
+(The other Candidate fields — `id`, `url`, `title`, `source`, `published_at`, `raw_excerpt` — come from `source_scanning`, not from this skill.)
 
 ## Thresholds
 
-- `score > 0.85` → **alert.** Append to `alerts.json`.
-- `score > 0.60` → keep in top 50 ranking.
-- `score < 0.40` → still record in `seen.txt`, but exclude from `candidates.json`.
+- `combined_score > 0.85` → **alert.** Append to `alerts.json` per `AGENTS.md` §"Alert schema". Use the `summary` (or a tightened version) as the alert's `reason`.
+- `combined_score ≥ 0.30` → keep in top 50 (subject to ranking).
+- `combined_score < 0.30` → drop from `candidates.json`. Still append the canonical URL to `seen.txt` so it doesn't re-evaluate.
 
-Never alert on `score ≤ 0.85`. The founder's trust in Scout depends on alert precision.
+Never alert on `combined_score ≤ 0.85`. Alert precision matters more than recall — the founder's trust in Scout decays fast on false positives.

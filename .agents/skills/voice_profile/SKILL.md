@@ -1,39 +1,53 @@
 ---
 name: voice_profile
-description: The founder's voice, topical surface area, and forbidden moves
+description: Load the founder's Voice DNA (tone, jargon, openings, depth) and expose it to topic_scoring + downstream Writer/Voice stages.
 ---
 
 # Voice profile
 
-This skill is consulted by `topic_scoring` (for relevance + voice_fit) and by the downstream Writer / Voice agents in the Timbre pipeline.
+This skill is the founder's voice, loaded once per tick and consulted by `topic_scoring`. Downstream Timbre stages (Writer, Voice) load the same data via the orchestrator, not via this skill.
 
-Source of truth: the markdown files in `voice_corpus/`. Treat the rules below as a learned summary; if a candidate seems to contradict these rules but matches what the founder actually writes (per `voice_corpus/`), trust the corpus.
+## Sources, in order of authority
 
-## Topical surface area
+1. **`/workspace/voice_dna.json`** — authoritative if present. Matches the `VoiceProfile` schema (`founder_id`, `tone[]`, `sentence_length`, `technical_depth`, `forbidden_jargon[]`, `preferred_openings[]`, `brand{}`, `tts_voice`).
+2. **`/workspace/voice_corpus/*.md`** — used as evidence for topical signals (what does the founder actually write about). NOT used to overwrite `voice_dna.json`.
+3. If `voice_dna.json` is absent (shouldn't happen — it ships with the repo), reconstruct a best-effort profile from `voice_corpus/`, write it to `voice_dna.json`, and proceed.
 
-> _**TODO** (founder to fill in): 5–10 topics the founder writes about. Be specific. "Infrastructure" is too broad; "self-hosted multi-region Postgres" is specific._
+Never include PII beyond `founder_id`. Never modify `voice_dna.json` if it already exists — it's version-controlled config.
 
-## Voice rules
+## Fields you must use
 
-> _**TODO** (founder to fill in or auto-extract from corpus). Examples:_
-> - _Never use "leverage" as a verb._
-> - _Sentences are short. Paragraphs are 2–4 sentences._
-> - _Code examples are mandatory for any technical claim._
-> - _No "in today's fast-paced world" openers. No "in conclusion" closers._
-> - _Personal anecdotes are fine if they're specific and short._
+| Field | Used by | Used how |
+|---|---|---|
+| `tone[]` | `topic_scoring` → voice_fit | If a candidate's topic plausibly carries one of these tones (e.g. "engineering-first" → a deep technical post fits; "pragmatic" → a benchmark or postmortem fits), award the tone match. |
+| `forbidden_jargon[]` | `topic_scoring` → both novelty and voice_fit | Penalize candidates whose title/summary contains these terms. The founder doesn't write hype, so hype titles signal source quality. |
+| `technical_depth` | `topic_scoring` → voice_fit | Candidate must plausibly admit a post at this depth (`deep-engineer` = needs technical specifics; benchmark numbers, code, mechanism). |
+| `preferred_openings` | downstream Writer/Voice (informational here) | Not used during scouting. Listed for context. |
 
-## Forbidden moves
+## Topical surface — derived from corpus, not declared
 
-- **Generic AI takes.** If a story is generic AI hype ("Model X scored Y on benchmark Z"), only score it relevant if the founder can add a take that adds value beyond restating the benchmark.
-- **Press release reposts.** The founder doesn't repost — they react. A topic must admit a take, not just a summary.
-- **Outsider commentary.** If the founder doesn't have credible standing on a topic (e.g. they're not in the field), discount voice_fit hard.
+There is no `topical_surface_area` field in the Voice DNA schema. To answer "what does the founder write about," do this once per tick:
 
-## How to extract voice from corpus
+1. List `/workspace/voice_corpus/*.md`. If empty, treat topical surface as undefined → voice_fit relies on `tone` + `technical_depth` only.
+2. If non-empty, inspect 2–3 files (rotate across ticks via `tick_id % n` so you cover the corpus over time).
+3. Extract the dominant nouns / domain terms (e.g. "Postgres replication", "vector store eviction", "Kubernetes pod scheduling"). These become the implicit topical surface for this tick.
+4. Use them as evidence when scoring: if a candidate intersects an extracted topic, that's a `tone` match for voice_fit purposes.
 
-When `voice_corpus/*.md` exists, Scout should treat each file as a positive example of the voice. For scoring:
+This is qualitative, not numeric. Don't emit a separate score for it — fold the judgment into `voice_fit_score` per `topic_scoring/SKILL.md`.
 
-1. Inspect 2–3 corpus posts per tick (rotating, to vary exposure).
-2. Identify recurring patterns: openers, transition styles, sentence rhythm, technical specificity.
-3. Use those as the implicit rubric for `voice_fit` scoring.
+## Forbidden moves (auto-discount)
 
-Do not produce a single numeric "voice match" score — the comparison is qualitative. Reason about it in `reasoning` in the topic_scoring output.
+These are independent of corpus and always apply:
+
+- **Generic AI hype.** "Model X scores Y on Z" with no implementation angle → cap `voice_fit_score` at `0.30`.
+- **Press release re-treads.** "Company announces feature" with no analysis hook → cap `voice_fit_score` at `0.30`.
+- **Outsider commentary on fields the founder demonstrably doesn't work in** (e.g. cell biology, macro finance — judged via corpus absence) → cap `voice_fit_score` at `0.20`.
+
+The cap applies AFTER additive scoring in `topic_scoring`. So a candidate that would otherwise be 0.90 voice_fit gets clamped to 0.30 if it's pure AI hype.
+
+## Output
+
+This skill doesn't have a separate output — its job is to make the Voice DNA + corpus signals available to `topic_scoring`. After running this skill once per tick, every subsequent `topic_scoring` call has access to:
+
+- The parsed `voice_dna.json` object.
+- A small list of topical anchors extracted from corpus (or empty if no corpus).
