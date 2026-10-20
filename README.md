@@ -1,5 +1,7 @@
 # timbre-scout-config
 
+> **Status:** Companion config repo for [Timbre](https://github.com/benikigai/timbre) — Cerebral Valley × Google DeepMind I/O Hackathon, 2026-05-23. Reference only. It must stay a standalone public repo because the Antigravity managed agent clones it by URL.
+
 Configuration for **Timbre Scout** — the always-on Antigravity agent that monitors the founder's industry, scores candidate topics against a voice profile, and persists state to its sandbox.
 
 This repo is cloned into Scout's Antigravity environment on every tick. The runtime state (`candidates.json`, `seen.txt`, `alerts.json`) is written by the agent and not committed here.
@@ -41,4 +43,11 @@ Scout is invoked hourly by an external scheduler (Vercel Cron). Each tick:
 4. Persist top results to `candidates.json`, alerts to `alerts.json`
 5. Exit; the orchestrator harvests state via subsequent interactions
 
-See [usetimbre.ai](https://usetimbre.ai) for the live system.
+## Related
+
+- [benikigai/timbre](https://github.com/benikigai/timbre) — the pipeline, backend and dashboard that register and drive Scout.
+- Landing page: [usetimbre.ai](https://usetimbre.ai) (the live API backend is offline; see the Timbre README).
+
+## Credits
+
+Built by [Ben Shyong](https://github.com/benikigai). `voice_corpus/` holds Ben's own published posts, used as the voice reference.
